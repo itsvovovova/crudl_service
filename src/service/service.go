@@ -10,7 +10,7 @@ import (
 func ReadUserData(w http.ResponseWriter, r *http.Request, RequestStruct interface{}) {
 	rv := reflect.ValueOf(RequestStruct)
 	if rv.Kind() != reflect.Ptr {
-		http.Error(w, "FATAL: RequestStruct must be a pointer", http.StatusInternalServerError)
+		http.Error(w, "RequestStruct must be a pointer", http.StatusInternalServerError)
 		return
 	}
 
