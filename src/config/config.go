@@ -19,13 +19,14 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
-	Username     string
-	Name         string
-	Password     string
-	Host         string
-	Port         string
-	DatabaseName string
-	SSLMode      string
+	Username      string
+	Name          string
+	Password      string
+	Host          string
+	Port          string
+	DatabaseName  string
+	SSLMode       string
+	PathMigration string
 }
 
 type LoggerConfig struct {
@@ -35,13 +36,14 @@ type LoggerConfig struct {
 
 func NewConfig() *Config {
 	var databaseConfig = DatabaseConfig{
-		Username:     os.Getenv("DB_USER"),
-		Password:     os.Getenv("DB_PASSWORD"),
-		Host:         os.Getenv("DB_HOST"),
-		Port:         os.Getenv("DB_PORT"),
-		Name:         os.Getenv("DB_NAME"),
-		DatabaseName: os.Getenv("DB_NAME"),
-		SSLMode:      os.Getenv("DB_SSL_MODE"),
+		Username:      os.Getenv("DB_USER"),
+		Password:      os.Getenv("DB_PASSWORD"),
+		Host:          os.Getenv("DB_HOST"),
+		Port:          os.Getenv("DB_PORT"),
+		Name:          os.Getenv("DB_NAME"),
+		DatabaseName:  os.Getenv("DB_NAME"),
+		SSLMode:       os.Getenv("DB_SSL_MODE"),
+		PathMigration: os.Getenv("DB_PATH_MIGRATION"),
 	}
 
 	var loggerConfig = LoggerConfig{

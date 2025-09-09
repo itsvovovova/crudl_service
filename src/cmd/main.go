@@ -17,6 +17,7 @@ func main() {
 	r.Put("/subscription", api.UpdateSubscription)
 	r.Delete("/subscription", api.DeleteSubsription)
 	r.Get("/subscriptionList", api.ListSubscription)
+	r.Get("/sum_subscriptions", api.SumUserSubscriptions)
 	// r.Get("/metrics", promhttp.Handler().ServeHTTP)
 	err := http.ListenAndServe(":"+config.CurrentConfig.Server.Port, r)
 	if err != nil {
