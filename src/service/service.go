@@ -17,6 +17,7 @@ func ReadUserData(w http.ResponseWriter, r *http.Request, RequestStruct interfac
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Failed to read request data", http.StatusBadRequest)
+		return
 	}
 	if err := json.Unmarshal(data, RequestStruct); err != nil {
 		http.Error(w, "Unmarshall data failed", http.StatusBadRequest)

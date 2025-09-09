@@ -100,7 +100,7 @@ func TestDeleteSubscription_Structure(t *testing.T) {
 	req := httptest.NewRequest("DELETE", "/subscription", bytes.NewBuffer(jsonData))
 	w := httptest.NewRecorder()
 
-	DeleteSubsription(w, req)
+	DeleteSubscription(w, req)
 
 	if w.Code == 0 {
 		t.Error("Handler did not set any response code")

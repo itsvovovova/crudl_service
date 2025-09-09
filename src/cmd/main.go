@@ -15,7 +15,7 @@ func main() {
 	r.Post("/subscription", api.CreateSubscription)
 	r.Get("/subscription", api.ReadSubscription)
 	r.Put("/subscription", api.UpdateSubscription)
-	r.Delete("/subscription", api.DeleteSubsription)
+	r.Delete("/subscription", api.DeleteSubscription)
 	r.Get("/subscriptionList", api.ListSubscription)
 	r.Get("/sum_subscriptions", api.SumUserSubscriptions)
 	// r.Get("/metrics", promhttp.Handler().ServeHTTP)
