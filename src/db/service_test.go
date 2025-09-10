@@ -3,7 +3,6 @@ package db
 import (
 	"crudl_service/src/types"
 	"testing"
-	"time"
 )
 
 func TestCreateUserSubscription_Structure(t *testing.T) {
@@ -85,8 +84,8 @@ func TestListUserSubscriptions_Structure(t *testing.T) {
 func TestGetSumUserSubscription_Structure(t *testing.T) {
 	data := &types.UserSumSubscriptionRequest{
 		UserId:    "user123",
-		StartDate: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
-		EndDate:   time.Date(2023, 12, 31, 0, 0, 0, 0, time.UTC),
+		StartDate: "01-2023",
+		EndDate:   "12-2023",
 	}
 
 	result, err := GetSumUserSubscription(data)

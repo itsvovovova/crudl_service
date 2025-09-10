@@ -32,7 +32,7 @@ func TestCreateSubscription_ValidRequest(t *testing.T) {
 }
 
 func TestCreateSubscription_InvalidTimeFormat(t *testing.T) {
-	invalidDate := "invalid-date"
+	invalidDate := "01-03-2025"
 	subscription := types.UserSubscription{
 		ServiceName: "Netflix",
 		Price:       999,

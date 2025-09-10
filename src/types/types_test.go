@@ -3,7 +3,6 @@ package types
 import (
 	"encoding/json"
 	"testing"
-	"time"
 )
 
 func TestUserSubscription_JSONMarshaling(t *testing.T) {
@@ -66,13 +65,10 @@ func TestUserSubscriptionData_JSONMarshaling(t *testing.T) {
 }
 
 func TestUserSumSubscriptionRequest_JSONMarshaling(t *testing.T) {
-	startTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
-	endTime := time.Date(2023, 12, 31, 0, 0, 0, 0, time.UTC)
-
 	request := UserSumSubscriptionRequest{
 		UserId:    "user123",
-		StartDate: startTime,
-		EndDate:   endTime,
+		StartDate: "01-2023",
+		EndDate:   "12-2023",
 	}
 
 	jsonData, err := json.Marshal(request)

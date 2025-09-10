@@ -29,7 +29,7 @@ func ReadUserData(w http.ResponseWriter, r *http.Request, RequestStruct interfac
 	log.Println("Unmarshaling JSON data")
 	if err := json.Unmarshal(data, RequestStruct); err != nil {
 		log.Println("Failed to unmarshal JSON data")
-		http.Error(w, "Unmarshall data failed", http.StatusBadRequest)
+		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
 		return
 	}
 

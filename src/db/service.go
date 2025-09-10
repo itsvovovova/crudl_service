@@ -138,7 +138,7 @@ func GetSumUserSubscription(data *types.UserSumSubscriptionRequest) (int64, erro
 		log.Println("Cannot calculate sum: nil data provided")
 		return 0, fmt.Errorf("data cannot be nil")
 	}
-	log.Println("Calculating sum of user subscriptions", "user_id", data.UserId, "start_date", data.StartDate, "end_date", data.EndDate)
+	log.Printf("Calculating sum of user subscriptions for user_id: %s, start_date: %s, end_date: %s", data.UserId, data.StartDate, data.EndDate)
 	query := `SELECT COALESCE(SUM(price), 0) 
 			  FROM subscriptions 
 			  WHERE user_id = $1 
@@ -146,7 +146,7 @@ func GetSumUserSubscription(data *types.UserSumSubscriptionRequest) (int64, erro
 			  AND (end_date IS NULL OR end_date >= $3)`
 
 	var totalSum int64
-	err := db.QueryRow(query, data.UserId, data.EndDate, data.StartDate).Scan(&totalSum)
+	err := db.QueryRow(query, data.UserId, data.StartDate, data.EndDate).Scan(&totalSum)
 	if err != nil {
 		log.Println("Failed to calculate sum of user subscriptions")
 		return 0, err

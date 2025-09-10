@@ -28,8 +28,7 @@ func InitDB() *sql.DB {
 		config.CurrentConfig.Database.Name)
 
 	log.Println("Connecting to database with connection string")
-	connStr := urlConnection
-	db, err := sql.Open("postgres", connStr)
+	db, err := sql.Open("postgres", urlConnection)
 	if err != nil {
 		log.Fatal("Failed to open database connection")
 	}

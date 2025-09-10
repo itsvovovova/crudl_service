@@ -80,7 +80,7 @@ func ReadSubscription(w http.ResponseWriter, r *http.Request) {
 	responseBody, err := db.GetUserSubscription(&request)
 	if err != nil {
 		log.Println("Failed to retrieve subscription from database")
-		http.Error(w, "Couldn't find subscription", http.StatusBadRequest)
+		http.Error(w, "Subscription not found", http.StatusNotFound)
 		return
 	}
 
