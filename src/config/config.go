@@ -9,7 +9,6 @@ var CurrentConfig = NewConfig()
 type Config struct {
 	Server   *ServerConfig
 	Database *DatabaseConfig
-	Logger   *LoggerConfig
 }
 
 type ServerConfig struct {
@@ -29,11 +28,6 @@ type DatabaseConfig struct {
 	PathMigration string
 }
 
-type LoggerConfig struct {
-	Level  string
-	Format string
-}
-
 func NewConfig() *Config {
 	var databaseConfig = DatabaseConfig{
 		Username:      os.Getenv("DB_USER"),
@@ -46,11 +40,6 @@ func NewConfig() *Config {
 		PathMigration: os.Getenv("DB_PATH_MIGRATION"),
 	}
 
-	var loggerConfig = LoggerConfig{
-		Level:  os.Getenv("LOG_LEVEL"),
-		Format: os.Getenv("LOG_FORMAT"),
-	}
-
 	var serverConfig = ServerConfig{
 		Port:     os.Getenv("SERVER_PORT"),
 		Host:     os.Getenv("SERVER_HOST"),
@@ -59,7 +48,6 @@ func NewConfig() *Config {
 	var Config = &Config{
 		Server:   &serverConfig,
 		Database: &databaseConfig,
-		Logger:   &loggerConfig,
 	}
 	return Config
 }
