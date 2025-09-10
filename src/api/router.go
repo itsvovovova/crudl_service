@@ -11,12 +11,29 @@ import (
 	"log"
 )
 
+// CreateSubscription creates a new subscription
+//
+//	@Summary		Create subscription
+//	@Description	Create a new subscription for a user
+//	@Tags			subscriptions
+//	@Accept			json
+//	@Produce		json
+//	@Param			subscription	body	types.UserSubscription	true	"Subscription data"
+//	@Success		201	"Subscription created successfully"
+//	@Failure		400	{object}	string	"Bad request"
+//	@Failure		500	{object}	string	"Internal server error"
+//	@Router			/subscription [post]
 func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 	log.Println("Creating new subscription request received")
 	var request types.UserSubscription
 	service.ReadUserData(w, r, &request)
 
 	log.Println("Validating start date format")
+	if request.StartDate == nil {
+		log.Println("Start date is required")
+		http.Error(w, "Start date is required", http.StatusBadRequest)
+		return
+	}
 	if _, err := time.Parse("01-2006", *request.StartDate); err != nil {
 		log.Println("Invalid start date format provided")
 		http.Error(w, "Incorrect time format", http.StatusBadRequest)
@@ -43,6 +60,18 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+// ReadSubscription gets a subscription
+//
+//	@Summary		Get subscription
+//	@Description	Get subscription by user ID and service name
+//	@Tags			subscriptions
+//	@Accept			json
+//	@Produce		json
+//	@Param			subscription	body		types.UserSubscriptionData	true	"User and service data"
+//	@Success		200				{object}	types.UserSubscription		"Subscription data"
+//	@Failure		400				{object}	string						"Bad request"
+//	@Failure		500				{object}	string						"Internal server error"
+//	@Router			/subscription [get]
 func ReadSubscription(w http.ResponseWriter, r *http.Request) {
 	log.Println("Read subscription request received")
 	var request types.UserSubscriptionData
@@ -68,6 +97,18 @@ func ReadSubscription(w http.ResponseWriter, r *http.Request) {
 	log.Println("Subscription data sent successfully")
 }
 
+// UpdateSubscription updates an existing subscription
+//
+//	@Summary		Update subscription
+//	@Description	Update subscription details
+//	@Tags			subscriptions
+//	@Accept			json
+//	@Produce		json
+//	@Param			subscription	body	types.UserSubscription	true	"Updated subscription data"
+//	@Success		200	"Subscription updated successfully"
+//	@Failure		400	{object}	string	"Bad request"
+//	@Failure		500	{object}	string	"Internal server error"
+//	@Router			/subscription [put]
 func UpdateSubscription(w http.ResponseWriter, r *http.Request) {
 	log.Println("Update subscription request received")
 	var request types.UserSubscription
@@ -83,6 +124,18 @@ func UpdateSubscription(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// DeleteSubscription deletes a subscription
+//
+//	@Summary		Delete subscription
+//	@Description	Delete subscription by user ID and service name
+//	@Tags			subscriptions
+//	@Accept			json
+//	@Produce		json
+//	@Param			subscription	body	types.UserSubscriptionData	true	"User and service data"
+//	@Success		200	"Subscription deleted successfully"
+//	@Failure		400	{object}	string	"Bad request"
+//	@Failure		500	{object}	string	"Internal server error"
+//	@Router			/subscription [delete]
 func DeleteSubscription(w http.ResponseWriter, r *http.Request) {
 	log.Println("Delete subscription request received")
 	var request types.UserSubscriptionData
@@ -98,6 +151,18 @@ func DeleteSubscription(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// ListSubscription lists all user subscriptions
+//
+//	@Summary		List subscriptions
+//	@Description	Get all subscriptions for a user
+//	@Tags			subscriptions
+//	@Accept			json
+//	@Produce		json
+//	@Param			user	body		types.UserRequest			true	"User data"
+//	@Success		200		{array}		types.UserSubscription		"List of subscriptions"
+//	@Failure		400		{object}	string						"Bad request"
+//	@Failure		500		{object}	string						"Internal server error"
+//	@Router			/subscriptionList [get]
 func ListSubscription(w http.ResponseWriter, r *http.Request) {
 	log.Println("List subscriptions request received")
 	var request types.UserRequest
@@ -123,6 +188,18 @@ func ListSubscription(w http.ResponseWriter, r *http.Request) {
 	log.Println("Subscriptions list sent successfully")
 }
 
+// SumUserSubscriptions calculates total subscription cost
+//
+//	@Summary		Calculate subscription sum
+//	@Description	Calculate total cost of user subscriptions in date range
+//	@Tags			subscriptions
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		types.UserSumSubscriptionRequest	true	"Date range and user data"
+//	@Success		200		{object}	types.UserSubscriptionSumResponse	"Total sum"
+//	@Failure		400		{object}	string								"Bad request"
+//	@Failure		500		{object}	string								"Internal server error"
+//	@Router			/sum_subscriptions [get]
 func SumUserSubscriptions(w http.ResponseWriter, r *http.Request) {
 	log.Println("Sum user subscriptions request received")
 	var request types.UserSumSubscriptionRequest

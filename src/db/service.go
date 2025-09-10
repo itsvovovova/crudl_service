@@ -3,6 +3,7 @@ package db
 import (
 	"crudl_service/src/types"
 	"database/sql"
+	"fmt"
 	"log"
 )
 
@@ -133,6 +134,10 @@ func ListUserSubscriptions(data *types.UserRequest) ([]types.UserSubscription, e
 }
 
 func GetSumUserSubscription(data *types.UserSumSubscriptionRequest) (int64, error) {
+	if data == nil {
+		log.Println("Cannot calculate sum: nil data provided")
+		return 0, fmt.Errorf("data cannot be nil")
+	}
 	log.Println("Calculating sum of user subscriptions", "user_id", data.UserId, "start_date", data.StartDate, "end_date", data.EndDate)
 	query := `SELECT COALESCE(SUM(price), 0) 
 			  FROM subscriptions 

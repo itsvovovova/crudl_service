@@ -1,0 +1,234 @@
+basePath: /
+definitions:
+  types.UserRequest:
+    properties:
+      user_id:
+        type: string
+    type: object
+  types.UserSubscription:
+    properties:
+      end_date:
+        type: string
+      price:
+        type: integer
+      service_name:
+        type: string
+      start_date:
+        type: string
+      user_id:
+        type: string
+    type: object
+  types.UserSubscriptionData:
+    properties:
+      service_name:
+        type: string
+      user_id:
+        type: string
+    type: object
+  types.UserSubscriptionSumResponse:
+    properties:
+      current_sum:
+        type: integer
+      user_id:
+        type: string
+    type: object
+  types.UserSumSubscriptionRequest:
+    properties:
+      end_time:
+        type: string
+      start_time:
+        type: string
+      user_id:
+        type: string
+    type: object
+externalDocs:
+  description: OpenAPI
+  url: https://swagger.io/resources/open-api/
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: A subscription management service API
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: CRUD Service API
+  version: "1.0"
+paths:
+  /subscription:
+    delete:
+      consumes:
+      - application/json
+      description: Delete subscription by user ID and service name
+      parameters:
+      - description: User and service data
+        in: body
+        name: subscription
+        required: true
+        schema:
+          $ref: '#/definitions/types.UserSubscriptionData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Subscription deleted successfully
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Delete subscription
+      tags:
+      - subscriptions
+    get:
+      consumes:
+      - application/json
+      description: Get subscription by user ID and service name
+      parameters:
+      - description: User and service data
+        in: body
+        name: subscription
+        required: true
+        schema:
+          $ref: '#/definitions/types.UserSubscriptionData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Subscription data
+          schema:
+            $ref: '#/definitions/types.UserSubscription'
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Get subscription
+      tags:
+      - subscriptions
+    post:
+      consumes:
+      - application/json
+      description: Create a new subscription for a user
+      parameters:
+      - description: Subscription data
+        in: body
+        name: subscription
+        required: true
+        schema:
+          $ref: '#/definitions/types.UserSubscription'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Subscription created successfully
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Create subscription
+      tags:
+      - subscriptions
+    put:
+      consumes:
+      - application/json
+      description: Update subscription details
+      parameters:
+      - description: Updated subscription data
+        in: body
+        name: subscription
+        required: true
+        schema:
+          $ref: '#/definitions/types.UserSubscription'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Subscription updated successfully
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Update subscription
+      tags:
+      - subscriptions
+  /subscriptionList:
+    get:
+      consumes:
+      - application/json
+      description: Get all subscriptions for a user
+      parameters:
+      - description: User data
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/types.UserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of subscriptions
+          schema:
+            items:
+              $ref: '#/definitions/types.UserSubscription'
+            type: array
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: List subscriptions
+      tags:
+      - subscriptions
+  /sum_subscriptions:
+    get:
+      consumes:
+      - application/json
+      description: Calculate total cost of user subscriptions in date range
+      parameters:
+      - description: Date range and user data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/types.UserSumSubscriptionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Total sum
+          schema:
+            $ref: '#/definitions/types.UserSubscriptionSumResponse'
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Calculate subscription sum
+      tags:
+      - subscriptions
+swagger: "2.0"

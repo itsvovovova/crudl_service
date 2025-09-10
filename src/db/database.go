@@ -37,6 +37,7 @@ func InitDB() *sql.DB {
 	log.Println("Testing database connection")
 	if err := db.Ping(); err != nil {
 		_ = db.Close()
+		log.Printf("Database connection test failed: %v", err)
 		log.Fatal("Database connection test failed")
 	}
 	log.Println("Database connection established successfully")
