@@ -38,7 +38,6 @@ func TestCreateSubscription_InvalidTimeFormat(t *testing.T) {
 		Price:       999,
 		UserId:      "user123",
 		StartDate:   &invalidDate,
-		EndDate:     nil,
 	}
 
 	jsonData, _ := json.Marshal(subscription)
@@ -71,12 +70,13 @@ func TestReadSubscription_Structure(t *testing.T) {
 
 func TestUpdateSubscription_Structure(t *testing.T) {
 	startDate := "01-2023"
+	endDate := "03-2025"
 	subscription := types.UserSubscription{
 		ServiceName: "Netflix",
 		Price:       1299,
 		UserId:      "user123",
 		StartDate:   &startDate,
-		EndDate:     nil,
+		EndDate:     &endDate,
 	}
 
 	jsonData, _ := json.Marshal(subscription)
