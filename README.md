@@ -17,7 +17,7 @@ docker-compose up --build
 
 Swagger UI доступен по адресу: http://localhost:8080/swagger/index.html
 
-Пример .env файла (нужно положить в корень проекта):
+# Пример .env файла (нужно положить в корень проекта):
 ```
 DB_HOST=postgres
 DB_PORT=5432
