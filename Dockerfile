@@ -1,4 +1,4 @@
-FROM golang:1.21
+FROM golang:1.23
 
 WORKDIR /app
 
@@ -9,5 +9,7 @@ RUN go mod download
 COPY . .
 
 RUN go build -o project ./src/cmd
+
+EXPOSE 8080
 
 CMD ["./project"]

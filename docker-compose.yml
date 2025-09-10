@@ -1,9 +1,11 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15
     restart: always
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
     ports:
       - "${DB_PORT}:5432"
     volumes:
@@ -17,7 +19,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: dockerfile
+      dockerfile: Dockerfile
     ports:
       - "${SERVER_PORT}:${SERVER_PORT}"
     depends_on:

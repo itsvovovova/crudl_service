@@ -19,6 +19,7 @@ func init() {
 }
 
 func InitDB() *sql.DB {
+	log.Println("Initializing database connection")
 	urlConnection := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		config.CurrentConfig.Database.Username,
 		config.CurrentConfig.Database.Password,
@@ -26,24 +27,30 @@ func InitDB() *sql.DB {
 		config.CurrentConfig.Database.Port,
 		config.CurrentConfig.Database.Name)
 
+	log.Println("Connecting to database with connection string")
 	connStr := urlConnection
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatal("Failed to open database connection:", err)
-	}
-	if err := db.Ping(); err != nil {
-		_ = db.Close()
-		log.Fatal("Database connection error:", err)
+		log.Fatal("Failed to open database connection")
 	}
 
+	log.Println("Testing database connection")
+	if err := db.Ping(); err != nil {
+		_ = db.Close()
+		log.Fatal("Database connection test failed")
+	}
+	log.Println("Database connection established successfully")
+
+	log.Println("Starting database migrations")
 	m, err := migrate.New(
 		config.CurrentConfig.Database.PathMigration,
 		urlConnection)
 	if err != nil {
-		log.Fatal("Failed to create migration instance:", err)
+		log.Fatal("Failed to create migration instance")
 	}
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		log.Fatal("Failed to apply migrations:", err)
+		log.Fatal("Failed to apply migrations")
 	}
+	log.Println("Database migrations completed successfully")
 	return db
 }
