@@ -4,7 +4,8 @@ import (
 	"crudl_service/src/config"
 	"database/sql"
 	"fmt"
-	"log"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -14,12 +15,12 @@ import (
 
 var db *sql.DB
 
-func init() {
+func InitDBConnection() {
 	db = InitDB()
 }
 
 func InitDB() *sql.DB {
-	log.Println("Initializing database connection")
+	log.Info("Initializing database connection")
 	urlConnection := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		config.CurrentConfig.Database.Username,
 		config.CurrentConfig.Database.Password,
@@ -27,21 +28,21 @@ func InitDB() *sql.DB {
 		config.CurrentConfig.Database.Port,
 		config.CurrentConfig.Database.Name)
 
-	log.Println("Connecting to database with connection string")
+	log.Info("Connecting to database with connection string")
 	db, err := sql.Open("postgres", urlConnection)
 	if err != nil {
 		log.Fatal("Failed to open database connection")
 	}
 
-	log.Println("Testing database connection")
+	log.Info("Testing database connection")
 	if err := db.Ping(); err != nil {
 		_ = db.Close()
-		log.Printf("Database connection test failed: %v", err)
+		log.Errorf("Database connection test failed: %v", err)
 		log.Fatal("Database connection test failed")
 	}
-	log.Println("Database connection established successfully")
+	log.Info("Database connection established successfully")
 
-	log.Println("Starting database migrations")
+	log.Info("Starting database migrations")
 	m, err := migrate.New(
 		config.CurrentConfig.Database.PathMigration,
 		urlConnection)
@@ -51,6 +52,17 @@ func InitDB() *sql.DB {
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		log.Fatal("Failed to apply migrations")
 	}
-	log.Println("Database migrations completed successfully")
+	log.Info("Database migrations completed successfully")
 	return db
+}
+
+func CloseDB() {
+	if db != nil {
+		log.Info("Closing database connection")
+		if err := db.Close(); err != nil {
+			log.Errorf("Error closing database connection: %v", err)
+		} else {
+			log.Info("Database connection closed successfully")
+		}
+	}
 }

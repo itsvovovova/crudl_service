@@ -4,7 +4,15 @@ import (
 	"os"
 )
 
-var CurrentConfig = NewConfig()
+var CurrentConfig *Config
+
+func InitConfig() {
+	CurrentConfig = NewConfig()
+}
+
+func ShutdownConfig() {
+	CurrentConfig = nil
+}
 
 type Config struct {
 	Server   *ServerConfig
@@ -15,6 +23,7 @@ type ServerConfig struct {
 	Port     string
 	Host     string
 	HostPort string
+	LogLevel string
 }
 
 type DatabaseConfig struct {
@@ -44,6 +53,7 @@ func NewConfig() *Config {
 		Port:     os.Getenv("SERVER_PORT"),
 		Host:     os.Getenv("SERVER_HOST"),
 		HostPort: os.Getenv("HOST_PORT"),
+		LogLevel: os.Getenv("LOG_LEVEL"),
 	}
 	var Config = &Config{
 		Server:   &serverConfig,

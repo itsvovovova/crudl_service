@@ -15,19 +15,14 @@ func TestCreateUserSubscription_Structure(t *testing.T) {
 		EndDate:     nil,
 	}
 
-	err := CreateUserSubscription(subscription)
+	_, err := CreateUserSubscription(subscription)
 	if err == nil {
 		t.Error("Expected database error in test environment")
 	}
 }
 
 func TestGetUserSubscription_Structure(t *testing.T) {
-	data := &types.UserSubscriptionData{
-		UserId:      "user123",
-		ServiceName: "Netflix",
-	}
-
-	result, err := GetUserSubscription(data)
+	result, err := GetUserSubscription(1)
 	if err == nil {
 		t.Error("Expected database error in test environment")
 	}
@@ -54,12 +49,7 @@ func TestUpdateUserSubscription_Structure(t *testing.T) {
 }
 
 func TestDeleteUserSubscription_Structure(t *testing.T) {
-	data := &types.UserSubscriptionData{
-		UserId:      "user123",
-		ServiceName: "Netflix",
-	}
-
-	err := DeleteUserSubscription(data)
+	err := DeleteUserSubscription(1)
 
 	if err == nil {
 		t.Error("Expected database error in test environment")
@@ -67,11 +57,7 @@ func TestDeleteUserSubscription_Structure(t *testing.T) {
 }
 
 func TestListUserSubscriptions_Structure(t *testing.T) {
-	data := &types.UserRequest{
-		UserId: "user123",
-	}
-
-	result, err := ListUserSubscriptions(data)
+	result, err := ListUserSubscriptions("user123", nil, 10)
 
 	if err == nil {
 		t.Error("Expected database error in test environment")
