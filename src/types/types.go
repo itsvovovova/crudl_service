@@ -33,3 +33,18 @@ type CreateSubscriptionResponse struct {
 	Result         string `json:"result"`
 	SubscriptionId int64  `json:"subscription_id"`
 }
+
+type UserRegisterRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type UserLoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type AuthResponse struct {
+	Token  string `json:"token"`
+	UserID string `json:"user_id"`
+}

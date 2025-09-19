@@ -17,6 +17,7 @@ func ShutdownConfig() {
 type Config struct {
 	Server   *ServerConfig
 	Database *DatabaseConfig
+	JWT      *JWTConfig
 }
 
 type ServerConfig struct {
@@ -37,6 +38,10 @@ type DatabaseConfig struct {
 	PathMigration string
 }
 
+type JWTConfig struct {
+	SecretKey string
+}
+
 func NewConfig() *Config {
 	var databaseConfig = DatabaseConfig{
 		Username:      os.Getenv("DB_USER"),
@@ -55,9 +60,14 @@ func NewConfig() *Config {
 		HostPort: os.Getenv("HOST_PORT"),
 		LogLevel: os.Getenv("LOG_LEVEL"),
 	}
+	var jwtConfig = JWTConfig{
+		SecretKey: os.Getenv("JWT_SECRET_KEY"),
+	}
+
 	var Config = &Config{
 		Server:   &serverConfig,
 		Database: &databaseConfig,
+		JWT:      &jwtConfig,
 	}
 	return Config
 }

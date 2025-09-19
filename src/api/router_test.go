@@ -10,6 +10,9 @@ import (
 )
 
 func TestCreateSubscription_ValidRequest(t *testing.T) {
+	repo := newMockRepository()
+	CurrentRepository = repo
+
 	startDate := "01-2023"
 	subscription := types.UserSubscription{
 		ServiceName: "Netflix",
@@ -32,6 +35,9 @@ func TestCreateSubscription_ValidRequest(t *testing.T) {
 }
 
 func TestCreateSubscription_InvalidTimeFormat(t *testing.T) {
+	repo := newMockRepository()
+	CurrentRepository = repo
+
 	invalidDate := "01-03-2025"
 	subscription := types.UserSubscription{
 		ServiceName: "Netflix",
@@ -52,6 +58,9 @@ func TestCreateSubscription_InvalidTimeFormat(t *testing.T) {
 }
 
 func TestReadSubscription_Structure(t *testing.T) {
+	repo := newMockRepository()
+	CurrentRepository = repo
+
 	subscriptionData := types.UserSubscriptionData{
 		UserId:      "user123",
 		ServiceName: "Netflix",
@@ -69,6 +78,9 @@ func TestReadSubscription_Structure(t *testing.T) {
 }
 
 func TestUpdateSubscription_Structure(t *testing.T) {
+	repo := newMockRepository()
+	CurrentRepository = repo
+
 	startDate := "01-2023"
 	endDate := "03-2025"
 	subscription := types.UserSubscription{
@@ -91,6 +103,9 @@ func TestUpdateSubscription_Structure(t *testing.T) {
 }
 
 func TestDeleteSubscription_Structure(t *testing.T) {
+	repo := newMockRepository()
+	CurrentRepository = repo
+
 	subscriptionData := types.UserSubscriptionData{
 		UserId:      "user123",
 		ServiceName: "Netflix",
@@ -108,6 +123,9 @@ func TestDeleteSubscription_Structure(t *testing.T) {
 }
 
 func TestListSubscription_Structure(t *testing.T) {
+	repo := newMockRepository()
+	CurrentRepository = repo
+
 	userRequest := types.UserRequest{
 		UserId: "user123",
 	}

@@ -13,10 +13,18 @@ import (
 	_ "github.com/lib/pq"
 )
 
+type NotFoundError struct{}
+
+func (e *NotFoundError) Error() string {
+	return "not found"
+}
+
 var db *sql.DB
+var DB *sql.DB
 
 func InitDBConnection() {
 	db = InitDB()
+	DB = db
 }
 
 func InitDB() *sql.DB {
@@ -53,6 +61,7 @@ func InitDB() *sql.DB {
 		log.Fatal("Failed to apply migrations")
 	}
 	log.Info("Database migrations completed successfully")
+	DB = db
 	return db
 }
 

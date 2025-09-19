@@ -1,12 +1,14 @@
 package service
 
 import (
+	"crudl_service/src/db"
 	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func ReadUserData(w http.ResponseWriter, r *http.Request, requestStruct interface{}) {
@@ -29,4 +31,26 @@ func GetIDRequest(r *http.Request) (int64, error) {
 		return 0, err
 	}
 	return id, nil
+}
+
+func AuthenticateUser(username, password string) (string, error) {
+	user, err := db.GetUserByUsername(username)
+	if err != nil {
+		return "", err
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	if err != nil {
+		return "", err
+	}
+
+	return user.ID, nil
+}
+
+func CreateUser(username, hashedPassword string) (string, error) {
+	return db.CreateUser(username, hashedPassword)
+}
+
+func CheckTaskOwnership(userID, taskID string) (bool, error) {
+	return db.CheckTaskOwnership(userID, taskID)
 }
