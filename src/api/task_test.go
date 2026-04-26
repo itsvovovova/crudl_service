@@ -99,6 +99,7 @@ func TestReadSubscription_ValidID(t *testing.T) {
 	repo.subscriptions[1] = subscription
 
 	req := httptest.NewRequest("GET", "/subscription/1", nil)
+	req.Header.Set("User-ID", "user123")
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("id", "1")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -177,7 +178,8 @@ func TestListSubscription_ValidUser(t *testing.T) {
 	repo.subscriptions[1] = subscription1
 	repo.subscriptions[2] = subscription2
 
-	req := httptest.NewRequest("GET", "/subscriptionList?user_id=user123", nil)
+	req := httptest.NewRequest("GET", "/subscriptionList", nil)
+	req.Header.Set("User-ID", "user123")
 	w := httptest.NewRecorder()
 
 	ListSubscription(w, req)
@@ -215,7 +217,8 @@ func TestListSubscription_WithLimit(t *testing.T) {
 		repo.subscriptions[int64(i)] = subscription
 	}
 
-	req := httptest.NewRequest("GET", "/subscriptionList?user_id=user123&limit=3", nil)
+	req := httptest.NewRequest("GET", "/subscriptionList?limit=3", nil)
+	req.Header.Set("User-ID", "user123")
 	w := httptest.NewRecorder()
 
 	ListSubscription(w, req)
@@ -253,6 +256,7 @@ func TestDeleteSubscription_ValidID(t *testing.T) {
 	repo.subscriptions[1] = subscription
 
 	req := httptest.NewRequest("DELETE", "/subscription/1", nil)
+	req.Header.Set("User-ID", "user123")
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("id", "1")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))

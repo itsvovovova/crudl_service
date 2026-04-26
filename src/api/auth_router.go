@@ -5,6 +5,7 @@ import (
 	"crudl_service/src/service"
 	"crudl_service/src/types"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -79,6 +80,10 @@ func sendAuthResponse(w http.ResponseWriter, token, userID string) {
 }
 
 func generateJWT(userID string) (string, error) {
+	if config.CurrentConfig.JWT.SecretKey == "" {
+		return "", fmt.Errorf("JWT_SECRET_KEY is not configured")
+	}
+
 	claims := Claims{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -125,7 +130,7 @@ func extractToken(r *http.Request) string {
 
 func parseToken(tokenString string) (*Claims, error) {
 	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
 		return []byte(config.CurrentConfig.JWT.SecretKey), nil
 	})
 

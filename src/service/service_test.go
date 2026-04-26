@@ -49,7 +49,7 @@ func TestReadUserData_NotPointer(t *testing.T) {
 	var result TestStruct
 	ReadUserData(w, req, result) // Passing value instead of pointer
 
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("Expected status %d, got %d", http.StatusInternalServerError, w.Code)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
 	}
 }

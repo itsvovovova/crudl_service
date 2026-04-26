@@ -47,11 +47,9 @@ func setupLogger() {
 }
 
 func main() {
+	config.InitConfig()
 	setupLogger()
 	log.Info("Starting CRUD service application")
-
-	log.Info("Initializing configuration")
-	config.InitConfig()
 
 	log.Info("Initializing database connection")
 	db.InitDBConnection()
@@ -66,12 +64,15 @@ func main() {
 	var r = chi.NewRouter()
 
 	log.Info("Registering API endpoints")
-	r.Post("/subscription", api.CreateSubscription)
-	r.Get("/subscription/{id}", api.ReadSubscription)
-	r.Put("/subscription/{id}", api.UpdateSubscription)
-	r.Delete("/subscription/{id}", api.DeleteSubscription)
-	r.Get("/subscriptionList", api.ListSubscription)
-	r.Get("/sum_subscriptions", api.SumUserSubscriptions)
+	r.Post("/register", api.RegisterUser)
+	r.Post("/login", api.LoginUser)
+
+	r.Post("/subscription", api.ValidateJWT(api.CreateSubscription))
+	r.Get("/subscription/{id}", api.ValidateJWT(api.ReadSubscription))
+	r.Put("/subscription/{id}", api.ValidateJWT(api.UpdateSubscription))
+	r.Delete("/subscription/{id}", api.ValidateJWT(api.DeleteSubscription))
+	r.Get("/subscriptionList", api.ValidateJWT(api.ListSubscription))
+	r.Post("/sum_subscriptions", api.ValidateJWT(api.SumUserSubscriptions))
 
 	log.Info("Registering Swagger documentation")
 	r.Get("/swagger/*", httpSwagger.Handler(

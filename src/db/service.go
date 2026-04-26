@@ -11,9 +11,19 @@ import (
 
 var ErrNotFound = errors.New("not found")
 
+func checkDB() error {
+	if db == nil {
+		return fmt.Errorf("database connection not initialized")
+	}
+	return nil
+}
+
 func CreateUserSubscription(data *types.UserSubscription) (int64, error) {
+	if err := checkDB(); err != nil {
+		return 0, err
+	}
 	log.Info("Creating new subscription for user:", data.UserId, "service:", data.ServiceName)
-	query := `INSERT INTO subscriptions (service_name, price, user_id, start_date, end_date) 
+	query := `INSERT INTO subscriptions (service_name, price, user_id, start_date, end_date)
 			  VALUES ($1, $2, $3, to_date($4, 'MM-YYYY'), CASE WHEN $5 IS NULL THEN NULL ELSE to_date($5, 'MM-YYYY') END) RETURNING id`
 
 	var id int64
@@ -27,6 +37,9 @@ func CreateUserSubscription(data *types.UserSubscription) (int64, error) {
 }
 
 func GetUserSubscription(idSubscription int64) (*types.UserSubscription, error) {
+	if err := checkDB(); err != nil {
+		return nil, err
+	}
 	log.Info("Getting subscription id:", idSubscription)
 	query := `SELECT service_name, price, user_id, to_char(start_date, 'MM-YYYY') AS start_date, to_char(end_date, 'MM-YYYY') AS end_date 
 			  FROM subscriptions 
@@ -52,6 +65,9 @@ func GetUserSubscription(idSubscription int64) (*types.UserSubscription, error) 
 }
 
 func UpdateUserSubscription(data *types.UserSubscription) error {
+	if err := checkDB(); err != nil {
+		return err
+	}
 	log.Info("Updating subscription", "user_id", data.UserId, "service_name", data.ServiceName)
 	query := `UPDATE subscriptions 
 			  SET price = $1, start_date = to_date($2, 'MM-YYYY'), end_date = CASE WHEN $3 IS NULL THEN NULL ELSE to_date($3, 'MM-YYYY') END
@@ -79,6 +95,9 @@ func UpdateUserSubscription(data *types.UserSubscription) error {
 }
 
 func DeleteUserSubscription(idSubscription int64) error {
+	if err := checkDB(); err != nil {
+		return err
+	}
 	log.Info("Deleting subscription", "id", idSubscription)
 	query := `DELETE FROM subscriptions WHERE id = $1`
 
@@ -104,6 +123,9 @@ func DeleteUserSubscription(idSubscription int64) error {
 }
 
 func ListUserSubscriptions(userID string, afterID *int64, limit int) ([]types.UserSubscription, error) {
+	if err := checkDB(); err != nil {
+		return nil, err
+	}
 	log.Info("Listing user subscriptions", "user_id", userID)
 
 	baseQuery := `SELECT id, service_name, price, user_id, to_char(start_date, 'MM-YYYY') AS start_date, to_char(end_date, 'MM-YYYY') AS end_date 
@@ -158,6 +180,9 @@ func ListUserSubscriptions(userID string, afterID *int64, limit int) ([]types.Us
 }
 
 func GetSumUserSubscription(data *types.UserSumSubscriptionRequest) (int64, error) {
+	if err := checkDB(); err != nil {
+		return 0, err
+	}
 	if data == nil {
 		log.Error("Cannot calculate sum: nil data provided")
 		return 0, fmt.Errorf("data cannot be nil")

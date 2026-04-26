@@ -44,6 +44,8 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 	var request types.UserSubscription
 	service.ReadUserData(w, r, &request)
 
+	request.UserId = r.Header.Get("User-ID")
+
 	log.Info("Validating start date format")
 	if request.StartDate == nil {
 		log.Error("Start date is required")
@@ -115,6 +117,11 @@ func ReadSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if responseBody.UserId != r.Header.Get("User-ID") {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
 	log.Info("Marshaling subscription data to JSON")
 	bodyMarshal, err := json.Marshal(responseBody)
 	if err != nil {
@@ -147,6 +154,8 @@ func UpdateSubscription(w http.ResponseWriter, r *http.Request) {
 	var request types.UserSubscription
 	service.ReadUserData(w, r, &request)
 
+	request.UserId = r.Header.Get("User-ID")
+
 	if err := CurrentRepository.Update(&request); err != nil {
 		log.Error("Failed to update subscription in database")
 		http.Error(w, "Subscription not found", http.StatusNotFound)
@@ -177,6 +186,18 @@ func DeleteSubscription(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to parse ID", http.StatusBadRequest)
 		return
 	}
+
+	existing, err := CurrentRepository.Get(intID)
+	if err != nil {
+		log.Error("Failed to retrieve subscription from database")
+		http.Error(w, "Subscription not found", http.StatusNotFound)
+		return
+	}
+	if existing.UserId != r.Header.Get("User-ID") {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
 	if err := CurrentRepository.Delete(intID); err != nil {
 		log.Error("Failed to delete subscription from database")
 		http.Error(w, "Subscription not found", http.StatusNotFound)
@@ -201,7 +222,7 @@ func DeleteSubscription(w http.ResponseWriter, r *http.Request) {
 //	@Failure		500	{object}	string	"Internal server error"
 //	@Router			/subscriptionList [get]
 func ListSubscription(w http.ResponseWriter, r *http.Request) {
-	userID := r.URL.Query().Get("user_id")
+	userID := r.Header.Get("User-ID")
 	var limitInt int
 	if v := r.URL.Query().Get("limit"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
@@ -253,6 +274,8 @@ func SumUserSubscriptions(w http.ResponseWriter, r *http.Request) {
 	log.Info("Sum user subscriptions request received")
 	var request types.UserSumSubscriptionRequest
 	service.ReadUserData(w, r, &request)
+
+	request.UserId = r.Header.Get("User-ID")
 
 	responseSum, err := CurrentRepository.Sum(&request)
 	if err != nil {
