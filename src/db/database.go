@@ -4,6 +4,7 @@ import (
 	"crudl_service/src/config"
 	"database/sql"
 	"fmt"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -19,59 +20,59 @@ func (e *NotFoundError) Error() string {
 	return "not found"
 }
 
-var db *sql.DB
-var DB *sql.DB
-
-func InitDBConnection() {
-	db = InitDB()
-	DB = db
+func buildConnURL(cfg *config.DatabaseConfig) string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		cfg.Username, cfg.Password, cfg.Host, cfg.Port, cfg.Name, cfg.SSLMode,
+	)
 }
 
-func InitDB() *sql.DB {
+func InitDB(cfg *config.DatabaseConfig) (*sql.DB, error) {
 	log.Info("Initializing database connection")
-	urlConnection := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		config.CurrentConfig.Database.Username,
-		config.CurrentConfig.Database.Password,
-		config.CurrentConfig.Database.Host,
-		config.CurrentConfig.Database.Port,
-		config.CurrentConfig.Database.Name)
+	urlConnection := buildConnURL(cfg)
 
-	log.Info("Connecting to database with connection string")
-	db, err := sql.Open("postgres", urlConnection)
+	conn, err := sql.Open("postgres", urlConnection)
 	if err != nil {
-		log.Fatal("Failed to open database connection")
+		return nil, fmt.Errorf("failed to open database connection: %w", err)
 	}
 
-	log.Info("Testing database connection")
-	if err := db.Ping(); err != nil {
-		_ = db.Close()
-		log.Errorf("Database connection test failed: %v", err)
-		log.Fatal("Database connection test failed")
+	const maxRetries = 10
+	const retryDelay = 3 * time.Second
+
+	for i := 1; i <= maxRetries; i++ {
+		if err = conn.Ping(); err == nil {
+			break
+		}
+		log.WithError(err).Warnf("Database not ready, retry %d/%d", i, maxRetries)
+		if i == maxRetries {
+			_ = conn.Close()
+			return nil, fmt.Errorf("database connection failed after %d retries", maxRetries)
+		}
+		time.Sleep(retryDelay)
 	}
 	log.Info("Database connection established successfully")
 
-	log.Info("Starting database migrations")
-	m, err := migrate.New(
-		config.CurrentConfig.Database.PathMigration,
-		urlConnection)
+	m, err := migrate.New(cfg.PathMigration, urlConnection)
 	if err != nil {
-		log.Fatal("Failed to create migration instance")
+		_ = conn.Close()
+		return nil, fmt.Errorf("failed to create migration instance: %w", err)
 	}
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		log.Fatal("Failed to apply migrations")
+		_ = conn.Close()
+		return nil, fmt.Errorf("failed to apply migrations: %w", err)
 	}
 	log.Info("Database migrations completed successfully")
-	DB = db
-	return db
+
+	return conn, nil
 }
 
-func CloseDB() {
-	if db != nil {
-		log.Info("Closing database connection")
-		if err := db.Close(); err != nil {
-			log.Errorf("Error closing database connection: %v", err)
-		} else {
-			log.Info("Database connection closed successfully")
-		}
+func CloseDB(db *sql.DB) {
+	if db == nil {
+		return
+	}
+	log.Info("Closing database connection")
+	if err := db.Close(); err != nil {
+		log.WithError(err).Error("Error closing database connection")
+	} else {
+		log.Info("Database connection closed successfully")
 	}
 }

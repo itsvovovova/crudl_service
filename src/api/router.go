@@ -12,19 +12,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var CurrentRepository db.SubscriptionRepository
+const dateFormat = "01-2006"
 
-// InitAPI initializes the API layer with repository
-func InitAPI(repository db.SubscriptionRepository) {
-	CurrentRepository = repository
-	log.Info("API layer initialized with repository")
+// App holds all application dependencies.
+type App struct {
+	repo      db.Repository
+	jwtSecret string
 }
 
-// ShutdownAPI gracefully shuts down the API layer
-func ShutdownAPI() {
-	log.Info("Shutting down API layer")
-	CurrentRepository = nil
-	log.Info("API layer shutdown complete")
+func NewApp(repo db.Repository, jwtSecret string) *App {
+	return &App{repo: repo, jwtSecret: jwtSecret}
 }
 
 // CreateSubscription creates a new subscription
@@ -34,105 +31,86 @@ func ShutdownAPI() {
 //	@Tags			subscriptions
 //	@Accept			json
 //	@Produce		json
-//	@Param			subscription	body	types.UserSubscription	true	"Subscription data"
-//	@Success		201	"Subscription created successfully"
-//	@Failure		400	{object}	string	"Bad request"
-//	@Failure		500	{object}	string	"Internal server error"
+//	@Param			subscription	body		types.UserSubscription				true	"Subscription data"
+//	@Success		201				{object}	types.CreateSubscriptionResponse	"Subscription created"
+//	@Failure		400				{object}	string								"Bad request"
+//	@Failure		500				{object}	string								"Internal server error"
 //	@Router			/subscription [post]
-func CreateSubscription(w http.ResponseWriter, r *http.Request) {
-	log.Info("Creating new subscription request received")
+func (a *App) CreateSubscription(w http.ResponseWriter, r *http.Request) {
 	var request types.UserSubscription
-	service.ReadUserData(w, r, &request)
-
+	if !service.ReadUserData(w, r, &request) {
+		return
+	}
 	request.UserId = r.Header.Get("User-ID")
 
-	log.Info("Validating start date format")
 	if request.StartDate == nil {
-		log.Error("Start date is required")
 		http.Error(w, "Start date is required", http.StatusBadRequest)
 		return
 	}
-	if _, err := time.Parse("01-2006", *request.StartDate); err != nil {
-		log.Error("Invalid start date format provided")
-		http.Error(w, "Incorrect time format", http.StatusBadRequest)
+	if _, err := time.Parse(dateFormat, *request.StartDate); err != nil {
+		http.Error(w, "Incorrect time format, expected MM-YYYY", http.StatusBadRequest)
 		return
 	}
-
 	if request.EndDate != nil {
-		log.Info("Validating end date format")
-		_, err := time.Parse("01-2006", *request.EndDate)
-		if err != nil {
-			log.Error("Invalid end date format provided")
-			http.Error(w, "Incorrect time format", http.StatusBadRequest)
+		if _, err := time.Parse(dateFormat, *request.EndDate); err != nil {
+			http.Error(w, "Incorrect time format, expected MM-YYYY", http.StatusBadRequest)
 			return
 		}
 	}
 
-	id, err := CurrentRepository.Create(&request)
+	id, err := a.repo.Create(&request)
 	if err != nil {
-		log.Error("Failed to create subscription in database")
-		http.Error(w, "Couldn't link subscription and database", http.StatusInternalServerError)
+		log.WithError(err).Error("Failed to create subscription")
+		http.Error(w, "Failed to create subscription", http.StatusInternalServerError)
 		return
 	}
 
-	log.Info("Subscription created successfully via API")
-	var response = types.CreateSubscriptionResponse{
-		Result:         "ok",
-		SubscriptionId: id,
-	}
-
-	bodyMarshal, err := json.Marshal(response)
+	body, err := json.Marshal(types.CreateSubscriptionResponse{Result: "ok", SubscriptionId: id})
 	if err != nil {
-		log.Error("Failed to marshal subscription data")
-		http.Error(w, "Failed to marshal user's subscription data", http.StatusInternalServerError)
+		log.WithError(err).Error("Failed to marshal response")
+		http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
 		return
 	}
-	w.Write(bodyMarshal)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	w.Write(body)
 }
 
-// ReadSubscription gets a subscription
+// ReadSubscription gets a subscription by ID
 //
 //	@Summary		Get subscription
 //	@Description	Get subscription by ID
 //	@Tags			subscriptions
 //	@Produce		json
-//	@Param			id	path	int	true	"Subscription ID"
+//	@Param			id	path		int						true	"Subscription ID"
 //	@Success		200	{object}	types.UserSubscription	"Subscription data"
-//	@Failure		400	{object}	string	"Bad request"
-//	@Failure		404	{object}	string	"Not found"
-//	@Failure		500	{object}	string	"Internal server error"
+//	@Failure		400	{object}	string					"Bad request"
+//	@Failure		403	{object}	string					"Forbidden"
+//	@Failure		404	{object}	string					"Not found"
 //	@Router			/subscription/{id} [get]
-func ReadSubscription(w http.ResponseWriter, r *http.Request) {
-	log.Info("Read subscription request received")
-	intID, err := service.GetIDRequest(r)
+func (a *App) ReadSubscription(w http.ResponseWriter, r *http.Request) {
+	id, err := service.GetIDRequest(r)
 	if err != nil {
-		log.Error("Failed to parse ID")
 		http.Error(w, "Failed to parse ID", http.StatusBadRequest)
 		return
 	}
-	responseBody, err := CurrentRepository.Get(intID)
+	sub, err := a.repo.Get(id)
 	if err != nil {
-		log.Error("Failed to retrieve subscription from database")
 		http.Error(w, "Subscription not found", http.StatusNotFound)
 		return
 	}
-
-	if responseBody.UserId != r.Header.Get("User-ID") {
+	if sub.UserId != r.Header.Get("User-ID") {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
-
-	log.Info("Marshaling subscription data to JSON")
-	bodyMarshal, err := json.Marshal(responseBody)
+	body, err := json.Marshal(sub)
 	if err != nil {
-		log.Error("Failed to marshal subscription data")
-		http.Error(w, "Failed to marshal user's subscription data", http.StatusInternalServerError)
+		log.WithError(err).Error("Failed to marshal subscription")
+		http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(bodyMarshal)
-	log.Info("Subscription data sent successfully")
+	w.Write(body)
 }
 
 // UpdateSubscription updates an existing subscription
@@ -142,27 +120,24 @@ func ReadSubscription(w http.ResponseWriter, r *http.Request) {
 //	@Tags			subscriptions
 //	@Accept			json
 //	@Produce		json
-//	@Param			id	path	int	true	"Subscription ID"
+//	@Param			id				path	int						true	"Subscription ID"
 //	@Param			subscription	body	types.UserSubscription	true	"Updated subscription data"
-//	@Success		200	"Subscription updated successfully"
-//	@Failure		400	{object}	string	"Bad request"
-//	@Failure		404	{object}	string	"Not found"
-//	@Failure		500	{object}	string	"Internal server error"
+//	@Success		200				"Subscription updated"
+//	@Failure		400				{object}	string	"Bad request"
+//	@Failure		404				{object}	string	"Not found"
 //	@Router			/subscription/{id} [put]
-func UpdateSubscription(w http.ResponseWriter, r *http.Request) {
-	log.Info("Update subscription request received")
+func (a *App) UpdateSubscription(w http.ResponseWriter, r *http.Request) {
 	var request types.UserSubscription
-	service.ReadUserData(w, r, &request)
-
+	if !service.ReadUserData(w, r, &request) {
+		return
+	}
 	request.UserId = r.Header.Get("User-ID")
 
-	if err := CurrentRepository.Update(&request); err != nil {
-		log.Error("Failed to update subscription in database")
+	if err := a.repo.Update(&request); err != nil {
+		log.WithError(err).Error("Failed to update subscription")
 		http.Error(w, "Subscription not found", http.StatusNotFound)
 		return
 	}
-
-	log.Info("Subscription updated successfully via API")
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -171,25 +146,20 @@ func UpdateSubscription(w http.ResponseWriter, r *http.Request) {
 //	@Summary		Delete subscription
 //	@Description	Delete subscription by ID
 //	@Tags			subscriptions
-//	@Produce		json
 //	@Param			id	path	int	true	"Subscription ID"
-//	@Success		200	"Subscription deleted successfully"
+//	@Success		200	"Subscription deleted"
 //	@Failure		400	{object}	string	"Bad request"
+//	@Failure		403	{object}	string	"Forbidden"
 //	@Failure		404	{object}	string	"Not found"
-//	@Failure		500	{object}	string	"Internal server error"
 //	@Router			/subscription/{id} [delete]
-func DeleteSubscription(w http.ResponseWriter, r *http.Request) {
-	log.Info("Delete subscription request received")
-	intID, err := service.GetIDRequest(r)
+func (a *App) DeleteSubscription(w http.ResponseWriter, r *http.Request) {
+	id, err := service.GetIDRequest(r)
 	if err != nil {
-		log.Error("Failed to parse ID")
 		http.Error(w, "Failed to parse ID", http.StatusBadRequest)
 		return
 	}
-
-	existing, err := CurrentRepository.Get(intID)
+	existing, err := a.repo.Get(id)
 	if err != nil {
-		log.Error("Failed to retrieve subscription from database")
 		http.Error(w, "Subscription not found", http.StatusNotFound)
 		return
 	}
@@ -197,36 +167,32 @@ func DeleteSubscription(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
-
-	if err := CurrentRepository.Delete(intID); err != nil {
-		log.Error("Failed to delete subscription from database")
+	if err := a.repo.Delete(id); err != nil {
+		log.WithError(err).Error("Failed to delete subscription")
 		http.Error(w, "Subscription not found", http.StatusNotFound)
 		return
 	}
-
-	log.Info("Subscription deleted successfully via API")
 	w.WriteHeader(http.StatusOK)
 }
 
-// ListSubscription lists all user subscriptions
+// ListSubscription lists subscriptions for the authenticated user
 //
 //	@Summary		List subscriptions
-//	@Description	Get all subscriptions for a user with pagination
+//	@Description	Paginated list of subscriptions for the current user
 //	@Tags			subscriptions
 //	@Produce		json
-//	@Param			user_id	query	string	true	"User ID"
-//	@Param			after_id	query	int	false	"Return items after this ID"
-//	@Param			limit	query	int	false	"Maximum items to return"
-//	@Success		200	{object}	map[string]interface{}	"{ data: [...], next_after_id: number|null }"
-//	@Failure		400	{object}	string	"Bad request"
-//	@Failure		500	{object}	string	"Internal server error"
+//	@Param			after_id	query		int		false	"Cursor: return items after this ID"
+//	@Param			limit		query		int		false	"Max items to return"
+//	@Success		200			{object}	map[string]interface{}	"{ data: [...], next_after_id: number|null }"
+//	@Failure		500			{object}	string	"Internal server error"
 //	@Router			/subscriptionList [get]
-func ListSubscription(w http.ResponseWriter, r *http.Request) {
+func (a *App) ListSubscription(w http.ResponseWriter, r *http.Request) {
 	userID := r.Header.Get("User-ID")
-	var limitInt int
+
+	var limit int
 	if v := r.URL.Query().Get("limit"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			limitInt = n
+			limit = n
 		}
 	}
 	var afterID *int64
@@ -236,9 +202,10 @@ func ListSubscription(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	items, err := CurrentRepository.List(userID, afterID, limitInt)
+	items, err := a.repo.List(userID, afterID, limit)
 	if err != nil {
-		http.Error(w, "failed to retrieve subscriptions", http.StatusInternalServerError)
+		log.WithError(err).Error("Failed to list subscriptions")
+		http.Error(w, "Failed to retrieve subscriptions", http.StatusInternalServerError)
 		return
 	}
 
@@ -249,55 +216,46 @@ func ListSubscription(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(struct {
+	if err := json.NewEncoder(w).Encode(struct {
 		Data        []types.UserSubscription `json:"data"`
 		NextAfterID *int64                   `json:"next_after_id"`
-	}{
-		Data:        items,
-		NextAfterID: nextAfterID,
-	})
+	}{Data: items, NextAfterID: nextAfterID}); err != nil {
+		log.WithError(err).Error("Failed to encode list response")
+	}
 }
 
 // SumUserSubscriptions calculates total subscription cost
 //
 //	@Summary		Calculate subscription sum
-//	@Description	Calculate total cost of user subscriptions in date range
+//	@Description	Total cost of subscriptions in a date range
 //	@Tags			subscriptions
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		types.UserSumSubscriptionRequest	true	"Date range and user data"
+//	@Param			request	body		types.UserSumSubscriptionRequest	true	"Date range"
 //	@Success		200		{object}	types.UserSubscriptionSumResponse	"Total sum"
-//	@Failure		400		{object}	string					"Bad request"
-//	@Failure		500		{object}	string					"Internal server error"
-//	@Router			/sum_subscriptions [get]
-func SumUserSubscriptions(w http.ResponseWriter, r *http.Request) {
-	log.Info("Sum user subscriptions request received")
+//	@Failure		400		{object}	string								"Bad request"
+//	@Failure		500		{object}	string								"Internal server error"
+//	@Router			/sum_subscriptions [post]
+func (a *App) SumUserSubscriptions(w http.ResponseWriter, r *http.Request) {
 	var request types.UserSumSubscriptionRequest
-	service.ReadUserData(w, r, &request)
-
+	if !service.ReadUserData(w, r, &request) {
+		return
+	}
 	request.UserId = r.Header.Get("User-ID")
 
-	responseSum, err := CurrentRepository.Sum(&request)
+	total, err := a.repo.Sum(&request)
 	if err != nil {
-		log.Error("Failed to calculate subscriptions sum from database")
-		http.Error(w, "Couldn't link user and database", http.StatusInternalServerError)
+		log.WithError(err).Error("Failed to calculate subscription sum")
+		http.Error(w, "Failed to calculate subscription sum", http.StatusInternalServerError)
 		return
 	}
 
-	log.Info("Creating response structure for sum calculation")
-	var response = types.UserSubscriptionSumResponse{
-		UserId:     request.UserId,
-		CurrentSum: responseSum}
-
-	log.Info("Marshaling sum response to JSON")
-	bodyMarshal, err := json.Marshal(response)
+	body, err := json.Marshal(types.UserSubscriptionSumResponse{UserId: request.UserId, CurrentSum: total})
 	if err != nil {
-		log.Error("Failed to marshal sum response")
-		http.Error(w, "Failed to marshal user's subscription data", http.StatusInternalServerError)
+		log.WithError(err).Error("Failed to marshal sum response")
+		http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(bodyMarshal)
-	log.Info("Subscriptions sum sent successfully")
+	w.Write(body)
 }

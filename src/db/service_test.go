@@ -5,94 +5,83 @@ import (
 	"testing"
 )
 
-func TestCreateUserSubscription_Structure(t *testing.T) {
-	startDate := "01-2023"
-	subscription := &types.UserSubscription{
-		ServiceName: "Netflix",
-		Price:       999,
-		UserId:      "user123",
-		StartDate:   &startDate,
-		EndDate:     nil,
-	}
+func newNilRepo() *postgresRepository {
+	return &postgresRepository{db: nil}
+}
 
-	_, err := CreateUserSubscription(subscription)
+func TestCreate_NilDB(t *testing.T) {
+	r := newNilRepo()
+	startDate := "01-2023"
+	_, err := r.Create(&types.UserSubscription{
+		ServiceName: "Netflix", Price: 999, UserId: "user123", StartDate: &startDate,
+	})
 	if err == nil {
-		t.Error("Expected database error in test environment")
+		t.Error("Expected error with nil db")
 	}
 }
 
-func TestGetUserSubscription_Structure(t *testing.T) {
-	result, err := GetUserSubscription(1)
+func TestGet_NilDB(t *testing.T) {
+	r := newNilRepo()
+	result, err := r.Get(1)
 	if err == nil {
-		t.Error("Expected database error in test environment")
+		t.Error("Expected error with nil db")
 	}
 	if result != nil {
-		t.Error("Expected nil result when database error occurs")
+		t.Error("Expected nil result")
 	}
 }
 
-func TestUpdateUserSubscription_Structure(t *testing.T) {
+func TestUpdate_NilDB(t *testing.T) {
+	r := newNilRepo()
 	startDate := "01-2023"
-	endDate := "12-2023"
-	subscription := &types.UserSubscription{
-		ServiceName: "Netflix",
-		Price:       1299,
-		UserId:      "user123",
-		StartDate:   &startDate,
-		EndDate:     &endDate,
-	}
-
-	err := UpdateUserSubscription(subscription)
+	err := r.Update(&types.UserSubscription{
+		ServiceName: "Netflix", Price: 999, UserId: "user123", StartDate: &startDate,
+	})
 	if err == nil {
-		t.Error("Expected database error in test environment")
+		t.Error("Expected error with nil db")
 	}
 }
 
-func TestDeleteUserSubscription_Structure(t *testing.T) {
-	err := DeleteUserSubscription(1)
-
-	if err == nil {
-		t.Error("Expected database error in test environment")
+func TestDelete_NilDB(t *testing.T) {
+	r := newNilRepo()
+	if err := r.Delete(1); err == nil {
+		t.Error("Expected error with nil db")
 	}
 }
 
-func TestListUserSubscriptions_Structure(t *testing.T) {
-	result, err := ListUserSubscriptions("user123", nil, 10)
-
+func TestList_NilDB(t *testing.T) {
+	r := newNilRepo()
+	result, err := r.List("user123", nil, 10)
 	if err == nil {
-		t.Error("Expected database error in test environment")
+		t.Error("Expected error with nil db")
 	}
 	if result != nil {
-		t.Error("Expected nil result when database error occurs")
+		t.Error("Expected nil result")
 	}
 }
 
-func TestGetSumUserSubscription_Structure(t *testing.T) {
-	data := &types.UserSumSubscriptionRequest{
-		UserId:    "user123",
-		StartDate: "01-2023",
-		EndDate:   "12-2023",
-	}
-
-	result, err := GetSumUserSubscription(data)
-
+func TestSum_NilDB(t *testing.T) {
+	r := newNilRepo()
+	result, err := r.Sum(&types.UserSumSubscriptionRequest{
+		UserId: "user123", StartDate: "01-2023", EndDate: "12-2023",
+	})
 	if err == nil {
-		t.Error("Expected database error in test environment")
+		t.Error("Expected error with nil db")
 	}
 	if result != 0 {
-		t.Errorf("Expected 0 result when database error occurs, got %d", result)
+		t.Errorf("Expected 0, got %d", result)
 	}
 }
 
-func TestGetSumUserSubscription_NilPointer(t *testing.T) {
+func TestSum_NilData(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
-			t.Errorf("Function should not panic with nil input: %v", r)
+			t.Errorf("Function should not panic: %v", r)
 		}
 	}()
-
-	_, err := GetSumUserSubscription(nil)
+	r := newNilRepo()
+	_, err := r.Sum(nil)
 	if err == nil {
-		t.Error("Expected error when passing nil to GetSumUserSubscription")
+		t.Error("Expected error for nil data")
 	}
 }

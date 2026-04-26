@@ -10,8 +10,7 @@ import (
 )
 
 func TestCreateSubscription_ValidRequest(t *testing.T) {
-	repo := newMockRepository()
-	CurrentRepository = repo
+	app := newTestApp(newMockRepository())
 
 	startDate := "01-2023"
 	subscription := types.UserSubscription{
@@ -19,30 +18,27 @@ func TestCreateSubscription_ValidRequest(t *testing.T) {
 		Price:       999,
 		UserId:      "user123",
 		StartDate:   &startDate,
-		EndDate:     nil,
 	}
 
 	jsonData, _ := json.Marshal(subscription)
 	req := httptest.NewRequest("POST", "/subscription", bytes.NewBuffer(jsonData))
+	req.Header.Set("User-ID", "user123")
 	w := httptest.NewRecorder()
 
-	CreateSubscription(w, req)
+	app.CreateSubscription(w, req)
 
-	if w.Code == http.StatusBadRequest &&
-		w.Body.String() == "Incorrect time format" {
-		t.Error("Time format validation failed for valid date")
+	if w.Code != http.StatusCreated {
+		t.Errorf("Expected status %d, got %d", http.StatusCreated, w.Code)
 	}
 }
 
 func TestCreateSubscription_InvalidTimeFormat(t *testing.T) {
-	repo := newMockRepository()
-	CurrentRepository = repo
+	app := newTestApp(newMockRepository())
 
 	invalidDate := "01-03-2025"
 	subscription := types.UserSubscription{
 		ServiceName: "Netflix",
 		Price:       999,
-		UserId:      "user123",
 		StartDate:   &invalidDate,
 	}
 
@@ -50,27 +46,20 @@ func TestCreateSubscription_InvalidTimeFormat(t *testing.T) {
 	req := httptest.NewRequest("POST", "/subscription", bytes.NewBuffer(jsonData))
 	w := httptest.NewRecorder()
 
-	CreateSubscription(w, req)
+	app.CreateSubscription(w, req)
 
 	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d for invalid time format, got %d", http.StatusBadRequest, w.Code)
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
 	}
 }
 
 func TestReadSubscription_Structure(t *testing.T) {
-	repo := newMockRepository()
-	CurrentRepository = repo
+	app := newTestApp(newMockRepository())
 
-	subscriptionData := types.UserSubscriptionData{
-		UserId:      "user123",
-		ServiceName: "Netflix",
-	}
-
-	jsonData, _ := json.Marshal(subscriptionData)
-	req := httptest.NewRequest("GET", "/subscription", bytes.NewBuffer(jsonData))
+	req := httptest.NewRequest("GET", "/subscription", nil)
 	w := httptest.NewRecorder()
 
-	ReadSubscription(w, req)
+	app.ReadSubscription(w, req)
 
 	if w.Code == 0 {
 		t.Error("Handler did not set any response code")
@@ -78,15 +67,13 @@ func TestReadSubscription_Structure(t *testing.T) {
 }
 
 func TestUpdateSubscription_Structure(t *testing.T) {
-	repo := newMockRepository()
-	CurrentRepository = repo
+	app := newTestApp(newMockRepository())
 
 	startDate := "01-2023"
 	endDate := "03-2025"
 	subscription := types.UserSubscription{
 		ServiceName: "Netflix",
 		Price:       1299,
-		UserId:      "user123",
 		StartDate:   &startDate,
 		EndDate:     &endDate,
 	}
@@ -95,7 +82,7 @@ func TestUpdateSubscription_Structure(t *testing.T) {
 	req := httptest.NewRequest("PUT", "/subscription", bytes.NewBuffer(jsonData))
 	w := httptest.NewRecorder()
 
-	UpdateSubscription(w, req)
+	app.UpdateSubscription(w, req)
 
 	if w.Code == 0 {
 		t.Error("Handler did not set any response code")
@@ -103,19 +90,12 @@ func TestUpdateSubscription_Structure(t *testing.T) {
 }
 
 func TestDeleteSubscription_Structure(t *testing.T) {
-	repo := newMockRepository()
-	CurrentRepository = repo
+	app := newTestApp(newMockRepository())
 
-	subscriptionData := types.UserSubscriptionData{
-		UserId:      "user123",
-		ServiceName: "Netflix",
-	}
-
-	jsonData, _ := json.Marshal(subscriptionData)
-	req := httptest.NewRequest("DELETE", "/subscription", bytes.NewBuffer(jsonData))
+	req := httptest.NewRequest("DELETE", "/subscription", nil)
 	w := httptest.NewRecorder()
 
-	DeleteSubscription(w, req)
+	app.DeleteSubscription(w, req)
 
 	if w.Code == 0 {
 		t.Error("Handler did not set any response code")
@@ -123,18 +103,12 @@ func TestDeleteSubscription_Structure(t *testing.T) {
 }
 
 func TestListSubscription_Structure(t *testing.T) {
-	repo := newMockRepository()
-	CurrentRepository = repo
+	app := newTestApp(newMockRepository())
 
-	userRequest := types.UserRequest{
-		UserId: "user123",
-	}
-
-	jsonData, _ := json.Marshal(userRequest)
-	req := httptest.NewRequest("GET", "/subscriptionList", bytes.NewBuffer(jsonData))
+	req := httptest.NewRequest("GET", "/subscriptionList", nil)
 	w := httptest.NewRecorder()
 
-	ListSubscription(w, req)
+	app.ListSubscription(w, req)
 
 	if w.Code == 0 {
 		t.Error("Handler did not set any response code")

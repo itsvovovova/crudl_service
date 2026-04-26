@@ -1,6 +1,10 @@
 package db
 
-import "crudl_service/src/types"
+import (
+	"crudl_service/src/types"
+	"database/sql"
+	"fmt"
+)
 
 type User struct {
 	ID       string `json:"id"`
@@ -17,59 +21,54 @@ type SubscriptionRepository interface {
 	Sum(data *types.UserSumSubscriptionRequest) (int64, error)
 }
 
-type postgresRepository struct{}
-
-func NewPostgresRepository() SubscriptionRepository {
-	return &postgresRepository{}
+type UserRepository interface {
+	GetUserByUsername(username string) (*User, error)
+	CreateUser(username, hashedPassword string) (string, error)
 }
 
-func (r *postgresRepository) Create(data *types.UserSubscription) (int64, error) {
-	return CreateUserSubscription(data)
+// Repository combines subscription and user operations.
+type Repository interface {
+	SubscriptionRepository
+	UserRepository
 }
 
-func (r *postgresRepository) Get(id int64) (*types.UserSubscription, error) {
-	return GetUserSubscription(id)
+type postgresRepository struct {
+	db *sql.DB
 }
 
-func (r *postgresRepository) Update(data *types.UserSubscription) error {
-	return UpdateUserSubscription(data)
+// NewPostgresRepository returns a Repository backed by PostgreSQL.
+func NewPostgresRepository(db *sql.DB) Repository {
+	return &postgresRepository{db: db}
 }
 
-func (r *postgresRepository) Delete(id int64) error {
-	return DeleteUserSubscription(id)
+func (r *postgresRepository) checkDB() error {
+	if r.db == nil {
+		return fmt.Errorf("database connection not initialized")
+	}
+	return nil
 }
 
-func (r *postgresRepository) List(userID string, afterID *int64, limit int) ([]types.UserSubscription, error) {
-	return ListUserSubscriptions(userID, afterID, limit)
-}
-
-func (r *postgresRepository) Sum(data *types.UserSumSubscriptionRequest) (int64, error) {
-	return GetSumUserSubscription(data)
-}
-
-func GetUserByUsername(username string) (*User, error) {
-	query := `SELECT id, username, password FROM users WHERE username = $1`
-	row := DB.QueryRow(query, username)
-
-	user := &User{}
-	err := row.Scan(&user.ID, &user.Username, &user.Password)
-	if err != nil {
+func (r *postgresRepository) GetUserByUsername(username string) (*User, error) {
+	if err := r.checkDB(); err != nil {
 		return nil, err
 	}
-
+	user := &User{}
+	if err := r.db.QueryRow(
+		`SELECT id, username, password FROM users WHERE username = $1`, username,
+	).Scan(&user.ID, &user.Username, &user.Password); err != nil {
+		return nil, err
+	}
 	return user, nil
 }
 
-func CreateUser(username, hashedPassword string) (string, error) {
-	query := `INSERT INTO users (username, password) VALUES ($1, $2) RETURNING id`
+func (r *postgresRepository) CreateUser(username, hashedPassword string) (string, error) {
+	if err := r.checkDB(); err != nil {
+		return "", err
+	}
 	var userID string
-	err := DB.QueryRow(query, username, hashedPassword).Scan(&userID)
+	err := r.db.QueryRow(
+		`INSERT INTO users (username, password) VALUES ($1, $2) RETURNING id`,
+		username, hashedPassword,
+	).Scan(&userID)
 	return userID, err
-}
-
-func CheckTaskOwnership(userID, taskID string) (bool, error) {
-	query := `SELECT COUNT(*) FROM tasks WHERE id = $1 AND user_id = $2`
-	var count int
-	err := DB.QueryRow(query, taskID, userID).Scan(&count)
-	return count > 0, err
 }

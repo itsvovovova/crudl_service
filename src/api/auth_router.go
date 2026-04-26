@@ -1,8 +1,6 @@
 package api
 
 import (
-	"crudl_service/src/config"
-	"crudl_service/src/service"
 	"crudl_service/src/types"
 	"encoding/json"
 	"fmt"
@@ -11,6 +9,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -19,29 +18,34 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-func LoginUser(w http.ResponseWriter, r *http.Request) {
+func (a *App) LoginUser(w http.ResponseWriter, r *http.Request) {
 	var request types.UserLoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
-	userID, err := service.AuthenticateUser(request.Username, request.Password)
+	user, err := a.repo.GetUserByUsername(request.Username)
 	if err != nil {
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
+	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(request.Password)); err != nil {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
 
-	token, err := generateJWT(userID)
+	token, err := a.generateJWT(user.ID)
 	if err != nil {
+		log.WithError(err).Error("Failed to generate JWT")
 		http.Error(w, "Token generation failed", http.StatusInternalServerError)
 		return
 	}
 
-	sendAuthResponse(w, token, userID)
+	a.sendAuthResponse(w, token, user.ID, http.StatusOK)
 }
 
-func RegisterUser(w http.ResponseWriter, r *http.Request) {
+func (a *App) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	var request types.UserRegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
@@ -50,40 +54,44 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
 	if err != nil {
+		log.WithError(err).Error("Failed to hash password")
 		http.Error(w, "Password hashing failed", http.StatusInternalServerError)
 		return
 	}
 
-	userID, err := service.CreateUser(request.Username, string(hashedPassword))
+	userID, err := a.repo.CreateUser(request.Username, string(hashedPassword))
 	if err != nil {
+		log.WithError(err).Error("Failed to create user")
 		http.Error(w, "User creation failed", http.StatusInternalServerError)
 		return
 	}
 
-	token, err := generateJWT(userID)
+	token, err := a.generateJWT(userID)
 	if err != nil {
+		log.WithError(err).Error("Failed to generate JWT")
 		http.Error(w, "Token generation failed", http.StatusInternalServerError)
 		return
 	}
 
-	sendAuthResponse(w, token, userID)
+	a.sendAuthResponse(w, token, userID, http.StatusCreated)
 }
 
-func sendAuthResponse(w http.ResponseWriter, token, userID string) {
-	response := types.AuthResponse{
-		Token:  token,
-		UserID: userID,
+func (a *App) sendAuthResponse(w http.ResponseWriter, token, userID string, status int) {
+	body, err := json.Marshal(types.AuthResponse{Token: token, UserID: userID})
+	if err != nil {
+		log.WithError(err).Error("Failed to marshal auth response")
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	w.WriteHeader(status)
+	w.Write(body)
 }
 
-func generateJWT(userID string) (string, error) {
-	if config.CurrentConfig.JWT.SecretKey == "" {
-		return "", fmt.Errorf("JWT_SECRET_KEY is not configured")
+func (a *App) generateJWT(userID string) (string, error) {
+	if a.jwtSecret == "" {
+		return "", fmt.Errorf("JWT secret is not configured")
 	}
-
 	claims := Claims{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -91,28 +99,39 @@ func generateJWT(userID string) (string, error) {
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
-
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(config.CurrentConfig.JWT.SecretKey))
+	return token.SignedString([]byte(a.jwtSecret))
 }
 
-func ValidateJWT(next http.HandlerFunc) http.HandlerFunc {
+func (a *App) ValidateJWT(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tokenString := extractToken(r)
 		if tokenString == "" {
 			http.Error(w, "Missing token", http.StatusUnauthorized)
 			return
 		}
-
-		claims, err := parseToken(tokenString)
+		claims, err := a.parseToken(tokenString)
 		if err != nil {
 			http.Error(w, "Invalid token", http.StatusUnauthorized)
 			return
 		}
-
 		r.Header.Set("User-ID", claims.UserID)
 		next(w, r)
 	}
+}
+
+func (a *App) parseToken(tokenString string) (*Claims, error) {
+	claims := &Claims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
+		return []byte(a.jwtSecret), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !token.Valid {
+		return nil, fmt.Errorf("token is not valid")
+	}
+	return claims, nil
 }
 
 func extractToken(r *http.Request) string {
@@ -120,48 +139,8 @@ func extractToken(r *http.Request) string {
 	if authHeader == "" {
 		return ""
 	}
-
 	if strings.HasPrefix(authHeader, "Bearer ") {
 		return authHeader[7:]
 	}
-
 	return authHeader
-}
-
-func parseToken(tokenString string) (*Claims, error) {
-	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
-		return []byte(config.CurrentConfig.JWT.SecretKey), nil
-	})
-
-	if err != nil || !token.Valid {
-		return nil, err
-	}
-
-	return claims, nil
-}
-
-func CheckTaskOwner(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		userID := r.Header.Get("User-ID")
-		taskID := r.URL.Query().Get("task_id")
-
-		if taskID == "" {
-			http.Error(w, "Missing task_id", http.StatusBadRequest)
-			return
-		}
-
-		isOwner, err := service.CheckTaskOwnership(userID, taskID)
-		if err != nil {
-			http.Error(w, "Database error", http.StatusInternalServerError)
-			return
-		}
-
-		if !isOwner {
-			http.Error(w, "Access denied", http.StatusForbidden)
-			return
-		}
-
-		next(w, r)
-	}
 }

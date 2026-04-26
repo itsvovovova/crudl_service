@@ -38,66 +38,70 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-func setupLogger() {
-	level, err := log.ParseLevel(config.CurrentConfig.Server.LogLevel)
+func setupLogger(cfg *config.Config) {
+	level, err := log.ParseLevel(cfg.Server.LogLevel)
 	if err != nil {
 		level = log.InfoLevel
+		log.Warn("Invalid LOG_LEVEL value, defaulting to info")
 	}
 	log.SetLevel(level)
 }
 
 func main() {
-	config.InitConfig()
-	setupLogger()
+	cfg, err := config.InitConfig()
+	if err != nil {
+		log.Fatalf("Configuration error: %v", err)
+	}
+	setupLogger(cfg)
 	log.Info("Starting CRUD service application")
 
-	log.Info("Initializing database connection")
-	db.InitDBConnection()
+	sqlDB, err := db.InitDB(cfg.Database)
+	if err != nil {
+		log.Fatalf("Database initialization failed: %v", err)
+	}
+	defer db.CloseDB(sqlDB)
 
-	log.Info("Initializing repository")
-	repository := db.NewPostgresRepository()
+	repo := db.NewPostgresRepository(sqlDB)
+	app := api.NewApp(repo, cfg.JWT.SecretKey)
 
-	log.Info("Initializing API layer")
-	api.InitAPI(repository)
+	r := chi.NewRouter()
 
-	log.Info("Initializing router and endpoints")
-	var r = chi.NewRouter()
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"status":"ok"}`))
+	})
 
-	log.Info("Registering API endpoints")
-	r.Post("/register", api.RegisterUser)
-	r.Post("/login", api.LoginUser)
+	r.Post("/register", app.RegisterUser)
+	r.Post("/login", app.LoginUser)
 
-	r.Post("/subscription", api.ValidateJWT(api.CreateSubscription))
-	r.Get("/subscription/{id}", api.ValidateJWT(api.ReadSubscription))
-	r.Put("/subscription/{id}", api.ValidateJWT(api.UpdateSubscription))
-	r.Delete("/subscription/{id}", api.ValidateJWT(api.DeleteSubscription))
-	r.Get("/subscriptionList", api.ValidateJWT(api.ListSubscription))
-	r.Post("/sum_subscriptions", api.ValidateJWT(api.SumUserSubscriptions))
+	r.Post("/subscription", app.ValidateJWT(app.CreateSubscription))
+	r.Get("/subscription/{id}", app.ValidateJWT(app.ReadSubscription))
+	r.Put("/subscription/{id}", app.ValidateJWT(app.UpdateSubscription))
+	r.Delete("/subscription/{id}", app.ValidateJWT(app.DeleteSubscription))
+	r.Get("/subscriptionList", app.ValidateJWT(app.ListSubscription))
+	r.Post("/sum_subscriptions", app.ValidateJWT(app.SumUserSubscriptions))
 
-	log.Info("Registering Swagger documentation")
 	r.Get("/swagger/*", httpSwagger.Handler(
 		httpSwagger.URL("http://localhost:8080/swagger/doc.json"),
 	))
 
 	server := &http.Server{
-		Addr:    ":" + config.CurrentConfig.Server.Port,
+		Addr:    ":" + cfg.Server.Port,
 		Handler: r,
 	}
 
 	var wg sync.WaitGroup
-
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		log.WithField("port", config.CurrentConfig.Server.Port).Info("Starting HTTP server")
+		log.WithField("port", cfg.Server.Port).Info("Starting HTTP server")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal("Failed to start HTTP server")
+			log.Fatalf("HTTP server error: %v", err)
 		}
 	}()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
 	<-sigChan
 	log.Info("Received shutdown signal, gracefully shutting down...")
 
@@ -105,20 +109,8 @@ func main() {
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		log.Error("Server forced to shutdown")
+		log.WithError(err).Error("Server forced to shutdown")
 	}
-
-	log.Info("Waiting for goroutines to finish...")
 	wg.Wait()
-
-	log.Info("Shutting down API layer...")
-	api.ShutdownAPI()
-
-	log.Info("Closing database connection...")
-	db.CloseDB()
-
-	log.Info("Shutting down configuration...")
-	config.ShutdownConfig()
-
 	log.Info("Application shutdown complete")
 }

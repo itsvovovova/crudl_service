@@ -1,18 +1,9 @@
 package config
 
 import (
+	"fmt"
 	"os"
 )
-
-var CurrentConfig *Config
-
-func InitConfig() {
-	CurrentConfig = NewConfig()
-}
-
-func ShutdownConfig() {
-	CurrentConfig = nil
-}
 
 type Config struct {
 	Server   *ServerConfig
@@ -22,8 +13,6 @@ type Config struct {
 
 type ServerConfig struct {
 	Port     string
-	Host     string
-	HostPort string
 	LogLevel string
 }
 
@@ -33,7 +22,6 @@ type DatabaseConfig struct {
 	Password      string
 	Host          string
 	Port          string
-	DatabaseName  string
 	SSLMode       string
 	PathMigration string
 }
@@ -42,32 +30,54 @@ type JWTConfig struct {
 	SecretKey string
 }
 
-func NewConfig() *Config {
-	var databaseConfig = DatabaseConfig{
-		Username:      os.Getenv("DB_USER"),
-		Password:      os.Getenv("DB_PASSWORD"),
-		Host:          os.Getenv("DB_HOST"),
-		Port:          os.Getenv("DB_PORT"),
-		Name:          os.Getenv("DB_NAME"),
-		DatabaseName:  os.Getenv("DB_NAME"),
-		SSLMode:       os.Getenv("DB_SSL_MODE"),
-		PathMigration: os.Getenv("DB_PATH_MIGRATION"),
-	}
+func InitConfig() (*Config, error) {
+	cfg := newConfig()
+	return cfg, cfg.Validate()
+}
 
-	var serverConfig = ServerConfig{
-		Port:     os.Getenv("SERVER_PORT"),
-		Host:     os.Getenv("SERVER_HOST"),
-		HostPort: os.Getenv("HOST_PORT"),
-		LogLevel: os.Getenv("LOG_LEVEL"),
+func newConfig() *Config {
+	sslMode := os.Getenv("DB_SSL_MODE")
+	if sslMode == "" {
+		sslMode = "disable"
 	}
-	var jwtConfig = JWTConfig{
-		SecretKey: os.Getenv("JWT_SECRET_KEY"),
+	port := os.Getenv("SERVER_PORT")
+	if port == "" {
+		port = "8080"
 	}
+	return &Config{
+		Server: &ServerConfig{
+			Port:     port,
+			LogLevel: os.Getenv("LOG_LEVEL"),
+		},
+		Database: &DatabaseConfig{
+			Username:      os.Getenv("DB_USER"),
+			Password:      os.Getenv("DB_PASSWORD"),
+			Host:          os.Getenv("DB_HOST"),
+			Port:          os.Getenv("DB_PORT"),
+			Name:          os.Getenv("DB_NAME"),
+			SSLMode:       sslMode,
+			PathMigration: os.Getenv("DB_PATH_MIGRATION"),
+		},
+		JWT: &JWTConfig{
+			SecretKey: os.Getenv("JWT_SECRET_KEY"),
+		},
+	}
+}
 
-	var Config = &Config{
-		Server:   &serverConfig,
-		Database: &databaseConfig,
-		JWT:      &jwtConfig,
+func (c *Config) Validate() error {
+	required := map[string]string{
+		"DB_USER":             c.Database.Username,
+		"DB_PASSWORD":         c.Database.Password,
+		"DB_HOST":             c.Database.Host,
+		"DB_PORT":             c.Database.Port,
+		"DB_NAME":             c.Database.Name,
+		"JWT_SECRET_KEY":      c.JWT.SecretKey,
+		"DB_PATH_MIGRATION":   c.Database.PathMigration,
 	}
-	return Config
+	for key, val := range required {
+		if val == "" {
+			return fmt.Errorf("required environment variable %s is not set", key)
+		}
+	}
+	return nil
 }
