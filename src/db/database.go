@@ -60,6 +60,12 @@ func InitDB(cfg *config.DatabaseConfig) (*sql.DB, error) {
 		_ = conn.Close()
 		return nil, fmt.Errorf("failed to apply migrations: %w", err)
 	}
+
+	sourceErr, dbErr := m.Close()
+	if sourceErr != nil || dbErr != nil {
+		log.WithFields(log.Fields{"source": sourceErr, "db": dbErr}).Warn("Error closing migrate instance")
+	}
+
 	log.Info("Database migrations completed successfully")
 
 	return conn, nil

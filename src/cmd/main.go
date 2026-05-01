@@ -22,10 +22,10 @@ package main
 import (
 	"context"
 	"crudl_service/src/api"
+	"crudl_service/src/closer"
 	"crudl_service/src/config"
 	"crudl_service/src/db"
 	"net/http"
-	"os"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -59,7 +59,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Database initialization failed: %v", err)
 	}
-	defer db.CloseDB(sqlDB)
+
+	cl := &closer.Closer{}
+	cl.Add(func() error {
+		log.Info("Closing database connection")
+		return sqlDB.Close()
+	})
 
 	repo := db.NewPostgresRepository(sqlDB)
 	app := api.NewApp(repo, cfg.JWT.SecretKey)
@@ -90,6 +95,13 @@ func main() {
 		Handler: r,
 	}
 
+	cl.Add(func() error {
+		log.Info("Shutting down HTTP server")
+		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+		defer cancel()
+		return server.Shutdown(ctx)
+	})
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -100,16 +112,15 @@ func main() {
 		}
 	}()
 
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	<-sigChan
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	<-ctx.Done()
 	log.Info("Received shutdown signal, gracefully shutting down...")
+	stop() // повторный Ctrl+C убьёт процесс немедленно
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := server.Shutdown(ctx); err != nil {
-		log.WithError(err).Error("Server forced to shutdown")
+	if err := cl.Close(); err != nil {
+		log.WithError(err).Error("Error during shutdown")
 	}
 	wg.Wait()
 	log.Info("Application shutdown complete")
